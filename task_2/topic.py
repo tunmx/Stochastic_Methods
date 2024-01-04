@@ -58,8 +58,11 @@ def get_example_matrix_str(text: str) -> np.ndarray:
 
     return mat
 
-
 class FindSteadyStateVector(object):
+    """
+    A class to find the limiting matrix or steady state vector of a Markov chain using the Cesàro summation method.
+    It takes a transition matrix and computes the Cesàro mean of the matrix up to a specified max power.
+    """
 
     def __init__(self, transaction_matrix: np.ndarray, max_power: int):
         self.P = transaction_matrix.copy()
@@ -68,6 +71,10 @@ class FindSteadyStateVector(object):
         self.loss_from_total_steps = None
 
     def run(self):
+        """
+        Executes the Cesàro summation and computes the loss at each step, where the loss is the maximum
+        Euclidean distance between the rows of the summation matrix.
+        """
         ts = range(1, self.max_power + 1)
         self.loss_from_total_steps = list()
         print("Running Cesàro summation and loss calculation...")
@@ -76,12 +83,15 @@ class FindSteadyStateVector(object):
                 summation_matrix = self.cesaro_summation(self.P, t)
                 loss = self.loss_func(summation_matrix)
                 self.loss_from_total_steps.append(loss)
-                pbar.update(1)  # 更新进度条
-                pbar.set_postfix(Loss=f"{loss:.6f}")  # 显示额外信息
+                pbar.update(1)  # Update the progress bar
+                pbar.set_postfix(Loss=f"{loss:.6f}")  # Display additional information
 
         print("Calculation completed.")
 
     def plot_loss(self):
+        """
+        Plots the loss over the steps of Cesàro summation to visualize the convergence of the steady state vector.
+        """
         plt.figure(figsize=(10, 6))
         plt.plot(self.loss_from_total_steps, 'b-', label='Loss')
         plt.xlabel('Step')
@@ -93,6 +103,9 @@ class FindSteadyStateVector(object):
 
     @staticmethod
     def cesaro_summation(transition_matrix, t):
+        """
+        Computes the Cesàro summation of the transition matrix up to the power t.
+        """
         powers = [matrix_power(transition_matrix, n) for n in range(t)]
         powers_stack = np.stack(powers)
         cesaro_mean = np.mean(powers_stack, axis=0)
@@ -100,17 +113,20 @@ class FindSteadyStateVector(object):
 
     @staticmethod
     def max_euclidean_distance(matrix):
-        # 初始化最大距离为0
+        """
+        Computes the maximum Euclidean distance between any two rows of a matrix.
+        """
+        # Initialize the maximum distance as zero
         max_dist = 0
-        # 获取矩阵的行数
+        # Get the number of rows in the matrix
         num_rows = matrix.shape[0]
 
-        # 计算任意两行之间的欧几里得距离，并找到最大值
+        # Compute the Euclidean distance between each pair of different rows and find the maximum
         for i in range(num_rows):
-            for j in range(i + 1, num_rows):  # 仅比较不同的行，避免重复计算
-                # 计算第i行和第j行之间的欧几里得距离
+            for j in range(i + 1, num_rows):  # Only compare different rows to avoid redundant computations
+                # Compute the Euclidean distance between row i and row j
                 l2_norm = np.linalg.norm(matrix[i] - matrix[j])
-                # 更新最大距离
+                # Update the maximum distance
                 max_dist = max(max_dist, l2_norm)
 
         return max_dist

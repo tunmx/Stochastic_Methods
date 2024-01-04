@@ -3,6 +3,7 @@ from numpy.linalg import matrix_power
 from math import gcd
 from functools import reduce
 
+
 def get_example_matrix_str(text: str) -> np.ndarray:
     """
     Text to matrix
@@ -13,49 +14,47 @@ def get_example_matrix_str(text: str) -> np.ndarray:
 
     return mat
 
-# 计算周期d
-def compute_period(matrix):
-    n = matrix.shape[0]
-    periods = []
-    for i in range(n):
-        # Find the first power where P^k[i, i] > 0
-        for k in range(1, n*n+1):
-            if matrix_power(matrix, k)[i, i] > 0:
-                periods.append(k)
-                break
-    # The period d is the gcd of the list of periods
-    return reduce(gcd, periods)
 
-def find_cyclic_classes(transition_matrix):
-    n = len(transition_matrix)  # 状态的数量
-    classes = {i: set() for i in range(n)}
-    for state in range(n):
-        # 状态是否被访问过
-        visited = [False] * n
-        visited[state] = True
-        stack = [(state, 0)]  # (当前状态，步数)
-        while stack:
-            current_state, steps = stack.pop()
-            if steps and current_state == state:
-                period = steps
+# Define the function as per the user's description
+def find_cycles_with_limit(matrix, start_row, loop_n=1):
+    """
+    Find cycles starting from the given row by following non-zero indices, limited by loop_n.
+    """
+
+    def get_nonzero_indices(row):
+        """Get all indices with non-zero values in the given row."""
+        return [i + 1 for i, value in enumerate(row) if value > 0]  # Convert to 1-indexed
+
+    visited_rows = set()  # Keep track of visited rows to detect a cycle
+    cycles = []  # Store the sequences of rows in cycles
+    current_row = start_row
+    loops_count = 0  # Count the number of complete loops
+    period = 0
+    while loops_count < loop_n:
+        if current_row in visited_rows:
+            # If the current row has already been visited, we've completed a loop
+            loops_count += 1
+            # If we've reached the desired number of loops, break the loop
+            if loops_count == loop_n:
+                period = len(visited_rows)
                 break
-            # 访问下一个状态
-            for next_state, prob in enumerate(transition_matrix[current_state]):
-                if prob > 0 and not visited[next_state]:
-                    visited[next_state] = True
-                    stack.append((next_state, steps + 1))
-        # 计算循环类
-        classes[4 % n].add(state)
-    return classes
+            visited_rows.clear()  # Clear visited rows for the next loop
+
+        visited_rows.add(current_row)
+        row_indices = get_nonzero_indices(matrix[current_row - 1])  # Get non-zero indices of the current row
+        cycles.append(row_indices)  # Add the non-zero indices as a cycle
+        if not row_indices:  # If no non-zero indices, break the loop
+            break
+        current_row = row_indices[0]  # Continue with the first non-zero index
+
+    return cycles, period
+
 
 P = get_example_matrix_str(
     "0.0000 0.2953 0.4076 0.0000 0.0000 0.0000 0.0000 0.0000 0.2971 0.0000 0.0000 0.0000 0.0000 0.0000 0.5211 0.0000 0.0000 0.4789 0.0000 0.0000 0.0000 0.0000 0.0000 0.0000 0.5498 0.0000 0.0000 0.4502 0.0000 0.0000 0.0000 0.4618 0.2558 0.0000 0.0000 0.0000 0.0000 0.0000 0.2825 0.0000 0.0000 0.0000 0.0000 0.0000 0.0000 0.3296 0.6478 0.0000 0.0000 0.0227 0.2880 0.0000 0.0000 0.7120 0.0000 0.0000 0.0000 0.0000 0.0000 0.0000 0.0639 0.0000 0.0000 0.9361 0.0000 0.0000 0.0000 0.0000 0.0000 0.0000 0.0000 0.0000 0.0000 0.0000 0.0000 0.4837 0.1798 0.0000 0.0000 0.3364 0.0000 0.0000 0.0000 0.0000 0.5858 0.0000 0.0000 0.4142 0.0000 0.0000 0.8494 0.0000 0.0000 0.1506 0.0000 0.0000 0.0000 0.0000 0.0000 0.0000")
 print(P)
 
-# 计算状态转移矩阵的周期d
-period_d = compute_period(P)
-print(f"The period of the Markov chain is: {period_d}")
-
-# 确定循环类
-classes = find_cyclic_classes(P)
-print(f"Cyclic classes of the Markov chain: {classes}")
+cycles_result, period = find_cycles_with_limit(P, 2, loop_n=3)
+cyclic_classes = cycles_result[:period]
+for i, cycle in enumerate(cyclic_classes):
+    print(f"C{i} = {cycle}")
