@@ -111,6 +111,7 @@ def is_point_in_regions(regions, points):
 
     return points_with_indicator, points_inside
 
+
 def calculate_R_area(R_bounds):
     x_min, x_max, y_min, y_max = R_bounds
     # Calculate the width and height of the rectangle
@@ -120,48 +121,74 @@ def calculate_R_area(R_bounds):
     area = width * height
     return area
 
-# 创建Region实例
-# regions = [
-#     Region(0, -0.5, 2.1, 2),
-#     Region(1.6, 0.5, 2.1, 1),
-#     Region(0.5, 0, 2.6, 1)
-# ]
-# regions = [
-#     Region(1.6, 0.5, 4.3, 1),
-#     Region(0, 0, 4.3, 1.5),
-#     Region(-1.4, -0.5, 3.7, 2)
-# ]
-regions = [
-    Region(-0.5, -1.6, 1.5, 1.5),
-    Region(-1.6, 0, 2.1, 2),
-    Region(0.5, 0, 4.3, 1.5)
-]
 
-samples = 50
+confidence_level_table = {
+    None: 1.0,
+    "90%": 1.65,
+    "95%": 1.96,
+    "99%": 3.0,
+}
 
-# 计算并输出矩形R的边界
-R_bounds = calculate_R(regions)
-print("矩形R的边界是:", R_bounds)
 
-gen_points = generating_random_points(R_bounds, n=samples)
-print(gen_points.shape)
+def calculate_D_eta(m_n):
+    return (1 - m_n) * m_n
 
-results_points, in_num = is_point_in_regions(regions, gen_points)
-N = len(results_points)
-m_n = in_num / N
-S = calculate_R_area(R_bounds)
-S0 = m_n * S
 
-D = (1 - m_n) * m_n
-print(f"D = {D}")
+def calculate_accuracy_of_p_epsilon(D_eta, N, CI=None):
+    return confidence_level_table[CI] * (D_eta / np.sqrt(N))
 
-epsilon = D / np.sqrt(N)
 
-print(f"epsilon = {epsilon}")
+def calculate_abs_accuracy_of_S(epsilon, S):
+    return S * epsilon
 
-print(f"m / n: {in_num}/{len(results_points)} = {m_n}")
-print(f"S = {S}")
-print(f"S0 = {S0}")
 
-visual_pad = 0.1
-visual_regions(regions, R_bounds, points=results_points, padding=visual_pad)
+def calculate_rel_accuracy_of_S0(abs_accuracy, S0):
+    return (abs_accuracy / S0) * 100
+
+
+if __name__ == '__main__':
+    # 创建Region实例
+    # regions = [
+    #     Region(0, -0.5, 2.1, 2),
+    #     Region(1.6, 0.5, 2.1, 1),
+    #     Region(0.5, 0, 2.6, 1)
+    # ]
+    # regions = [
+    #     Region(1.6, 0.5, 4.3, 1),
+    #     Region(0, 0, 4.3, 1.5),
+    #     Region(-1.4, -0.5, 3.7, 2)
+    # ]
+    regions = [
+        Region(-0.5, -1.6, 1.5, 1.5),
+        Region(-1.6, 0, 2.1, 2),
+        Region(0.5, 0, 4.3, 1.5)
+    ]
+
+    samples = 1000
+
+    # 计算并输出矩形R的边界
+    R_bounds = calculate_R(regions)
+    print("矩形R的边界是:", R_bounds)
+
+    gen_points = generating_random_points(R_bounds, n=samples)
+    print(gen_points.shape)
+
+    results_points, in_num = is_point_in_regions(regions, gen_points)
+    N = len(results_points)
+    m_n = in_num / N
+    S = calculate_R_area(R_bounds)
+    S0 = m_n * S
+
+    D_eta = calculate_D_eta(m_n)
+    print(f"D = {D_eta}")
+
+    epsilon = D_eta / np.sqrt(N)
+
+    print(f"epsilon = {epsilon}")
+
+    print(f"m / n: {in_num}/{len(results_points)} = {m_n}")
+    print(f"S = {S}")
+    print(f"S0 = {S0}")
+
+    visual_pad = 0.1
+    visual_regions(regions, R_bounds, points=results_points, padding=visual_pad)
