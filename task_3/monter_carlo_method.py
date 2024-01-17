@@ -202,7 +202,7 @@ class MonterCarloSolution(object):
 
         # Highlight the points at the specified interval and the last point
         for index in highlight_indices:
-            plt.scatter(sample_sizes[index], relative_accuracies[index], color='blue')
+            plt.scatter(sample_sizes[index], relative_accuracies[index], color='blue', s=40)
 
         # Set the title and labels
         plt.title('The relative accuracy of the square S0 as a function of sample size N')
@@ -222,18 +222,18 @@ regions = [
 ]
 solution = MonterCarloSolution(regions)
 
-num_of_samples = 1000
+num_of_samples = 100
 confidence = "90%"
-# result = solution.calculate(N=num_of_samples, confidence=confidence)
-#
-# print(f"N = {result.N}")
-# print(f"m/N = {result.m_N}")
-# print(f"D_eta = {result.D_eta}")
-# print(f"S0 = {result.S0}")
-# print(f"abs.accuracy of S0 = {result.abs_accuracy_of_S0}")
-# print(f"rel.accuracy of S0 = {result.rel_accuracy_of_S0}")
-# print(f"{confidence} CI = {result.CI}")
-# solution.visual_regions(result.fall_points, fill=True)
+result = solution.calculate(N=num_of_samples, confidence=confidence)
 
-results = solution.fitting(num_of_samples, confidence)
-solution.plot_relative_accuracy(results)
+print(f"N = {result.N}")
+print(f"m/N = {result.m_N}")
+print(f"D_eta = {result.D_eta}")
+print(f"S0 = {result.S0}")
+print(f"abs.accuracy of S0 = {result.abs_accuracy_of_S0}")
+print(f"rel.accuracy of S0 = {result.rel_accuracy_of_S0}")
+print(f"{confidence} CI = {result.CI}")
+solution.visual_regions(result.fall_points, fill=True)
+
+# results = solution.fitting(num_of_samples, confidence)
+# solution.plot_relative_accuracy(results)
