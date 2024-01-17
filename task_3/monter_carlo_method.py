@@ -36,8 +36,12 @@ class MonterCarloSolution(object):
         self.R = self.calculate_R()
         self.S = self.calculate_R_area()
 
-    def fitting(self, max_N: int = 100, confidence=None) -> List[Type[MCResult]]:
-        pass
+    def fitting(self, max_N: int = 100, confidence=None) -> List[MCResult]:
+        results = list()
+        for N in range(1, max_N + 1):
+            results.append(self.calculate(N, confidence))
+
+        return results
 
     def calculate(self, N: int = 10, confidence: str = "95%") -> MCResult:
         gen_points = self.generating_random_points(self.R, N)
@@ -183,6 +187,33 @@ class MonterCarloSolution(object):
 
         return random_points
 
+    @staticmethod
+    def plot_relative_accuracy(results: List[MCResult], interval: int = 200) -> None:
+        # Extract sample sizes and relative accuracies
+        sample_sizes = [result.N for result in results]
+        relative_accuracies = [result.rel_accuracy_of_S0 for result in results]
+
+        # Identify the indices where we want to highlight the points (every 20% interval and the last point)
+        highlight_indices = [i for i in range(0, len(sample_sizes), interval)] + [len(sample_sizes) - 1]
+
+        # Create the plot
+        plt.figure(figsize=(10, 6))
+        plt.plot(sample_sizes, relative_accuracies, linestyle='-', color='black')  # Line
+
+        # Highlight the points at the specified interval and the last point
+        for index in highlight_indices:
+            plt.scatter(sample_sizes[index], relative_accuracies[index], color='blue')
+
+        # Set the title and labels
+        plt.title('The relative accuracy of the square S0 as a function of sample size N')
+        plt.xlabel('Sample Size N')
+        plt.ylabel('Relative Accuracy of S0 (%)')
+
+        # Show grid
+        plt.grid(True)
+
+        # Show the plot
+        plt.show()
 
 regions = [
     Region(-0.5, -1.6, 1.5, 1.5),
@@ -193,13 +224,16 @@ solution = MonterCarloSolution(regions)
 
 num_of_samples = 1000
 confidence = "90%"
-result = solution.calculate(N=num_of_samples, confidence=confidence)
+# result = solution.calculate(N=num_of_samples, confidence=confidence)
+#
+# print(f"N = {result.N}")
+# print(f"m/N = {result.m_N}")
+# print(f"D_eta = {result.D_eta}")
+# print(f"S0 = {result.S0}")
+# print(f"abs.accuracy of S0 = {result.abs_accuracy_of_S0}")
+# print(f"rel.accuracy of S0 = {result.rel_accuracy_of_S0}")
+# print(f"{confidence} CI = {result.CI}")
+# solution.visual_regions(result.fall_points, fill=True)
 
-print(f"N = {result.N}")
-print(f"m/N = {result.m_N}")
-print(f"D_eta = {result.D_eta}")
-print(f"S0 = {result.S0}")
-print(f"abs.accuracy of S0 = {result.abs_accuracy_of_S0}")
-print(f"rel.accuracy of S0 = {result.rel_accuracy_of_S0}")
-print(f"{confidence} CI = {result.CI}")
-solution.visual_regions(result.fall_points, fill=True)
+results = solution.fitting(num_of_samples, confidence)
+solution.plot_relative_accuracy(results)
