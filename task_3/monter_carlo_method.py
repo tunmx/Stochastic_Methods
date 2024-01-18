@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from typing import List, Tuple, Type
+from typing import List, Tuple
 from dataclasses import dataclass
 
 from numpy import ndarray
@@ -93,7 +93,7 @@ class MonterCarloSolution(object):
             if not fill:
                 plt.text(region.xi, region.yi, f'D{i + 1}', horizontalalignment='center', verticalalignment='center', )
 
-        if result.fall_points is not None:
+        if result is not None:
             # Filter points that are inside the regions (indicated by the third column being 1)
             inside_points = result.fall_points[result.fall_points[:, 2] == 1]
             outside_points = result.fall_points[result.fall_points[:, 2] == 0]
@@ -107,11 +107,10 @@ class MonterCarloSolution(object):
         if result is not None:
             # Add MCResult metrics to the plot as text
             result_text = (
-                f'S = {round(self.S)}\n'
                 f'N = {result.N}\n'
                 f'm/N = {result.m_N}\n'
                 f'D_eta = {round(result.D_eta, 6)}\n'
-                f'S0 = {round(result.S0)}\n'
+                f'S = {round(self.S, 6)}, S0 = {round(result.S0, 6)}\n'
                 f'abs.accuracy of S0 = {round(result.abs_accuracy_of_S0, 6)}\n'
                 f'rel.accuracy of S0 = {round(result.rel_accuracy_of_S0, 6)}%\n'
                 f'90% CI = {result.CI}'
@@ -241,13 +240,17 @@ class MonterCarloSolution(object):
 
 if __name__ == '__main__':
     regions = [
-        Region(-0.5, -1.6, 1.5, 1.5),
-        Region(-1.6, 0, 2.1, 2),
-        Region(0.5, 0, 4.3, 1.5),
+        # Region(-0.5, -1.6, 1.5, 1.5),
+        # Region(-1.6, 0, 2.1, 2),
+        # Region(0.5, 0, 4.3, 1.5),
 
-        # Region(0, -0.5, 2.1, 2),
-        # Region(1.6, 0.5, 2.1, 1),
-        # Region(0.5, 0, 2.6, 1)
+        Region(0, -0.5, 2.1, 2),
+        Region(1.6, 0.5, 2.1, 1),
+        Region(0.5, 0, 2.6, 1),
+
+        # Region(1.6, 0.5, 4.3, 1),
+        # Region(0.0, 0.0, 4.3, 1.5),
+        # Region(-1.4, -0.5, 3.7, 2)
     ]
     solution = MonterCarloSolution(regions)
 
@@ -255,6 +258,7 @@ if __name__ == '__main__':
     confidence = "90%"
     result = solution.calculate(N=num_of_samples, confidence=confidence)
 
+    print(f"S = {solution.S}")
     print(f"N = {result.N}")
     print(f"m/N = {result.m_N}")
     print(f"D_eta = {result.D_eta}")
@@ -269,3 +273,4 @@ if __name__ == '__main__':
     # solution.plot_relative_accuracy(results)
 
     solution.check_local_value(0.66, 19.7434, 50, "90%")
+
