@@ -3,9 +3,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from typing import List, Tuple
 from dataclasses import dataclass
+
+import tqdm
 from matplotlib.ticker import FuncFormatter
 from numpy import ndarray
-
+from scipy.interpolate import PchipInterpolator
 
 class Region(object):
     """
@@ -48,7 +50,7 @@ class MonterCarloSolution(object):
     def fitting(self, max_N: int = 100, confidence=None) -> List[MCResult]:
         results = list()
         gen_points = self.generating_random_points(self.R, max_N)
-        for N in range(1, max_N + 1):
+        for N in tqdm.tqdm(range(1, max_N + 1)):
             result = self.calculate(N, confidence, gen_points[:N])
             results.append(
                 result
@@ -89,13 +91,20 @@ class MonterCarloSolution(object):
 
         colors = ["blue"] if fill else ['yellow', 'green', 'cyan', 'blue', 'red', 'magenta', 'black']
 
-        alpha = 1.0 if fill else 0.5
-
+        alpha = 0.3 if fill else 0.5
+        mask = np.zeros_like(X, dtype=bool)
         for i, region in enumerate(self.regions):
             Z = (np.abs(X - region.xi) ** region.pi + np.abs(Y - region.yi) ** region.pi) - region.ci
             # fill
             color = colors[i % len(colors)]
-            plt.contourf(X, Y, Z, levels=[-region.ci, 0], colors=[color], alpha=alpha)
+            if fill:
+                inside = Z <= 0
+                to_fill = inside & ~mask
+                Z_masked = np.ma.array(Z, mask=~to_fill)
+                plt.contourf(X, Y, Z_masked, levels=[-region.ci, 0], colors=[colors[i % len(colors)]], alpha=alpha)
+                mask = mask | inside
+            else:
+                plt.contourf(X, Y, Z, levels=[-region.ci, 0], colors=[color], alpha=alpha)
             # add text
             if not fill:
                 plt.text(region.xi, region.yi, f'D{i + 1}', horizontalalignment='center', verticalalignment='center', )
@@ -106,10 +115,10 @@ class MonterCarloSolution(object):
             outside_points = result.fall_points[result.fall_points[:, 2] == 0]
 
             # Plot inside points with red 'o'
-            plt.scatter(inside_points[:, 0], inside_points[:, 1], color='red', marker='o', s=10)
+            plt.scatter(inside_points[:, 0], inside_points[:, 1], color='red', marker='o', s=6)
 
             # Plot outside points with black 'x'
-            plt.scatter(outside_points[:, 0], outside_points[:, 1], color='black', marker='x', s=10)
+            plt.scatter(outside_points[:, 0], outside_points[:, 1], color='black', marker='x', s=6)
 
         if result is not None:
             # Add MCResult metrics to the plot as text
@@ -214,14 +223,28 @@ class MonterCarloSolution(object):
         return random_points
 
     @staticmethod
-    def plot_relative_accuracy(results: List[MCResult]) -> None:
-        # Extract sample sizes and relative accuracies
-        sample_sizes = [result.N for result in results]
-        relative_accuracies = [result.rel_accuracy_of_S0 for result in results]
+    def plot_relative_accuracy(results: List[MCResult], checkpoints: List[int]) -> None:
+        # Extract sample sizes and relative accuracies for all results
+        sample_sizes = np.array([result.N for result in results])
+        relative_accuracies = np.array([result.rel_accuracy_of_S0 for result in results])
+
+        # Extract sample sizes and relative accuracies for checkpoints
+        checkpoint_sizes = np.array([results[i].N for i in checkpoints])
+        checkpoint_accuracies = np.array([results[i].rel_accuracy_of_S0 for i in checkpoints])
 
         # Create the plot
         plt.figure(figsize=(10, 6))
-        plt.plot(sample_sizes, relative_accuracies, linestyle='-', color='black')  # Line
+
+        # Use PchipInterpolator for a smooth monotonic curve
+        pchip = PchipInterpolator(checkpoint_sizes, checkpoint_accuracies)
+        smooth_sample_sizes = np.linspace(checkpoint_sizes.min(), checkpoint_sizes.max(), 400)
+        smooth_relative_accuracies = pchip(smooth_sample_sizes)
+
+        # Plot the smooth curve
+        plt.plot(smooth_sample_sizes, smooth_relative_accuracies, linestyle='-', color='black')
+
+        # Plot the checkpoints with a different style
+        plt.scatter(checkpoint_sizes, checkpoint_accuracies, color='red', zorder=5)
 
         # Set the title and labels
         plt.title('The relative accuracy of the square S0 as a function of sample size N')
@@ -230,8 +253,7 @@ class MonterCarloSolution(object):
 
         # Formatter to add a percentage sign
         def to_percent(y, position):
-            # The percent symbol needs escaping in python strings
-            s = str(y)
+            s = str(int(y))
             return s + '%'
 
         # Create the formatter using the function to_percent
@@ -240,11 +262,15 @@ class MonterCarloSolution(object):
         # Set the formatter
         plt.gca().yaxis.set_major_formatter(formatter)
 
+        # Set the range of x-axis to show the full range of sample sizes
+        plt.xlim(1, sample_sizes.max() + 50)
+
         # Show grid
         plt.grid(True)
 
         # Show the plot
         plt.show()
+
 
     @staticmethod
     def check_local_value(m_n, S, N, conf):
@@ -285,10 +311,12 @@ if __name__ == '__main__':
     # print(f"abs.accuracy of S0 = {result.abs_accuracy_of_S0}")
     # print(f"rel.accuracy of S0 = {round(result.rel_accuracy_of_S0, 2)}%")
     # print(f"{confidence} CI = {result.CI}")
-    # solution.visual_regions(result, fill=True, padding=0.4)
+    # solution.visual_regions(result=None, fill=True, padding=0.4)
 
+    checkpoints = [10, 25, 60, 150, 400, 1000]
+    checkpoints = list(map(lambda x: x - 1, checkpoints))
     results = solution.fitting(num_of_samples, confidence)
-    solution.plot_relative_accuracy(results)
+    solution.plot_relative_accuracy(results, checkpoints)
 
     # solution.check_local_value(0.66, 19.7434, 50, "90%")
 
