@@ -7,27 +7,34 @@ from numpy import ndarray
 
 
 class Region(object):
+    """
+    Represents a geometric region defined by a boundary equation of the form:
+    |x - xi|^pi + |y - yi|^pi = ci
+    """
 
     def __init__(self, xi: float, yi: float, pi: float, ci: float):
-        self.xi = xi
-        self.yi = yi
-        self.pi = pi
-        self.ci = ci
+        # Initialize the Region with the equation parameters
+        self.xi = xi  # x-coordinate of the reference point
+        self.yi = yi  # y-coordinate of the reference point
+        self.pi = pi  # Power in the boundary equation
+        self.ci = ci  # Constant in the boundary equation
 
 
 @dataclass
 class MCResult:
-    m: int
-    N: int
-    m_N: float
-    S0: float
-    D_eta: float
-    accuracy_of_p_epsilon: float
-    abs_accuracy_of_S0: float
-    rel_accuracy_of_S0: float
-    CI: Tuple
-    fall_points: np.ndarray
-
+    """
+    Stores the results from a Monte Carlo simulation for estimating area.
+    """
+    m: int  # Count of points within the region
+    N: int  # Total number of sampled points
+    m_N: float  # Ratio of points within the region
+    S0: float  # Estimated area of the region
+    D_eta: float  # Variance of the Bernoulli random variable
+    accuracy_of_p_epsilon: float  # Precision of the probability estimate
+    abs_accuracy_of_S0: float  # Absolute accuracy of the estimated area
+    rel_accuracy_of_S0: float  # Relative accuracy of the estimated area
+    CI: Tuple  # Confidence interval for the area estimate
+    fall_points: np.ndarray  # Array of sampled points with inside/outside status
 
 class MonterCarloSolution(object):
 
@@ -52,12 +59,12 @@ class MonterCarloSolution(object):
         epsilon = self.calculate_accuracy_of_p_epsilon(D_eta, N, confidence)
         abs_accuracy = self.calculate_abs_accuracy_of_S(epsilon, self.S)
         rel_accuracy = self.calculate_rel_accuracy_of_S0(abs_accuracy, S0)
-        CI = (S0 - abs_accuracy, S0 + abs_accuracy)
+        CI = (round(S0 - abs_accuracy, 5), round(S0 + abs_accuracy, 5))
 
         return MCResult(m=int(m), N=N, m_N=m_N, S0=S0, D_eta=D_eta, accuracy_of_p_epsilon=epsilon,
                         abs_accuracy_of_S0=abs_accuracy, rel_accuracy_of_S0=rel_accuracy, CI=CI, fall_points=fall_points)
 
-    def visual_regions(self, fall_points: np.ndarray = None, padding: float = 0.1, fill: bool = True) -> None:
+    def visual_regions(self, result: MCResult = None, padding: float = 0.1, fill: bool = True) -> None:
         x_min, x_max, y_min, y_max = self.R
         # padding
         x_padding = (x_max - x_min) * padding
@@ -86,16 +93,31 @@ class MonterCarloSolution(object):
             if not fill:
                 plt.text(region.xi, region.yi, f'D{i + 1}', horizontalalignment='center', verticalalignment='center', )
 
-        if fall_points is not None:
+        if result.fall_points is not None:
             # Filter points that are inside the regions (indicated by the third column being 1)
-            inside_points = fall_points[fall_points[:, 2] == 1]
-            outside_points = fall_points[fall_points[:, 2] == 0]
+            inside_points = result.fall_points[result.fall_points[:, 2] == 1]
+            outside_points = result.fall_points[result.fall_points[:, 2] == 0]
 
             # Plot inside points with red 'o'
             plt.scatter(inside_points[:, 0], inside_points[:, 1], color='red', marker='o', s=10)
 
             # Plot outside points with black 'x'
             plt.scatter(outside_points[:, 0], outside_points[:, 1], color='black', marker='x', s=10)
+
+        if result is not None:
+            # Add MCResult metrics to the plot as text
+            result_text = (
+                f'S = {round(self.S)}\n'
+                f'N = {result.N}\n'
+                f'm/N = {result.m_N}\n'
+                f'D_eta = {round(result.D_eta, 6)}\n'
+                f'S0 = {round(result.S0)}\n'
+                f'abs.accuracy of S0 = {round(result.abs_accuracy_of_S0, 6)}\n'
+                f'rel.accuracy of S0 = {round(result.rel_accuracy_of_S0, 6)}%\n'
+                f'90% CI = {result.CI}'
+            )
+            plt.text(x_max_padded, y_max_padded, result_text, horizontalalignment='right', verticalalignment='top',
+                     bbox=dict(facecolor='white', alpha=0.5))
 
         # Added padding
         plt.plot([x_min, x_max, x_max, x_min, x_min], [y_min, y_min, y_max, y_max, y_min], 'g--')
@@ -125,14 +147,12 @@ class MonterCarloSolution(object):
         y_min = float('inf')
         y_max = float('-inf')
 
-        # 遍历所有区域来更新R的边界值
         for region in self.regions:
             x_min = min(x_min, region.xi - region.ci ** (1 / region.pi))
             x_max = max(x_max, region.xi + region.ci ** (1 / region.pi))
             y_min = min(y_min, region.yi - region.ci ** (1 / region.pi))
             y_max = max(y_max, region.yi + region.ci ** (1 / region.pi))
 
-        # 返回矩形R的边界
         return x_min, x_max, y_min, y_max
 
     @staticmethod
@@ -150,7 +170,7 @@ class MonterCarloSolution(object):
         z = confidence_level_table.get(confidence)
         if z is None:
             raise ValueError(f"Unsupported confidence level: {confidence}")
-        return z * (np.sqrt(D_eta) / np.sqrt(N))
+        return z * (D_eta / np.sqrt(N))
 
     @staticmethod
     def calculate_abs_accuracy_of_S(epsilon: float, S: float) -> float:
@@ -188,21 +208,15 @@ class MonterCarloSolution(object):
         return random_points
 
     @staticmethod
-    def plot_relative_accuracy(results: List[MCResult], interval: int = 200) -> None:
+    def plot_relative_accuracy(results: List[MCResult]) -> None:
         # Extract sample sizes and relative accuracies
         sample_sizes = [result.N for result in results]
         relative_accuracies = [result.rel_accuracy_of_S0 for result in results]
-
-        # Identify the indices where we want to highlight the points (every 20% interval and the last point)
-        highlight_indices = [i for i in range(0, len(sample_sizes), interval)] + [len(sample_sizes) - 1]
 
         # Create the plot
         plt.figure(figsize=(10, 6))
         plt.plot(sample_sizes, relative_accuracies, linestyle='-', color='black')  # Line
 
-        # Highlight the points at the specified interval and the last point
-        for index in highlight_indices:
-            plt.scatter(sample_sizes[index], relative_accuracies[index], color='blue', s=40)
 
         # Set the title and labels
         plt.title('The relative accuracy of the square S0 as a function of sample size N')
@@ -215,25 +229,43 @@ class MonterCarloSolution(object):
         # Show the plot
         plt.show()
 
-regions = [
-    Region(-0.5, -1.6, 1.5, 1.5),
-    Region(-1.6, 0, 2.1, 2),
-    Region(0.5, 0, 4.3, 1.5)
-]
-solution = MonterCarloSolution(regions)
+    @staticmethod
+    def check_local_value(m_n, S, N, conf):
+        eta = MonterCarloSolution.calculate_D_eta(m_n)
+        eps = MonterCarloSolution.calculate_accuracy_of_p_epsilon(eta, N, conf)
+        abs_acc = MonterCarloSolution.calculate_abs_accuracy_of_S(eps, S)
+        print(f"D_eta = {eta}")
+        print(f"eps = {eps}")
+        print(f"abs_acc = {abs_acc}")
 
-num_of_samples = 100
-confidence = "90%"
-result = solution.calculate(N=num_of_samples, confidence=confidence)
 
-print(f"N = {result.N}")
-print(f"m/N = {result.m_N}")
-print(f"D_eta = {result.D_eta}")
-print(f"S0 = {result.S0}")
-print(f"abs.accuracy of S0 = {result.abs_accuracy_of_S0}")
-print(f"rel.accuracy of S0 = {result.rel_accuracy_of_S0}")
-print(f"{confidence} CI = {result.CI}")
-solution.visual_regions(result.fall_points, fill=True)
+if __name__ == '__main__':
+    regions = [
+        Region(-0.5, -1.6, 1.5, 1.5),
+        Region(-1.6, 0, 2.1, 2),
+        Region(0.5, 0, 4.3, 1.5),
 
-# results = solution.fitting(num_of_samples, confidence)
-# solution.plot_relative_accuracy(results)
+        # Region(0, -0.5, 2.1, 2),
+        # Region(1.6, 0.5, 2.1, 1),
+        # Region(0.5, 0, 2.6, 1)
+    ]
+    solution = MonterCarloSolution(regions)
+
+    num_of_samples = 1000
+    confidence = "90%"
+    result = solution.calculate(N=num_of_samples, confidence=confidence)
+
+    print(f"N = {result.N}")
+    print(f"m/N = {result.m_N}")
+    print(f"D_eta = {result.D_eta}")
+    print(f"epsilon = {result.accuracy_of_p_epsilon}")
+    print(f"S0 = {result.S0}")
+    print(f"abs.accuracy of S0 = {result.abs_accuracy_of_S0}")
+    print(f"rel.accuracy of S0 = {round(result.rel_accuracy_of_S0, 2)}%")
+    print(f"{confidence} CI = {result.CI}")
+    solution.visual_regions(result, fill=True, padding=0.4)
+
+    # results = solution.fitting(num_of_samples, confidence)
+    # solution.plot_relative_accuracy(results)
+
+    solution.check_local_value(0.66, 19.7434, 50, "90%")
