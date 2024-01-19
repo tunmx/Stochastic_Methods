@@ -123,11 +123,11 @@ class MonterCarloSolution(object):
         if result is not None:
             # Add MCResult metrics to the plot as text
             result_text = (
-                f'N = {result.N}\n'
-                f'm/N = {result.m_N}\n'
+                f'N = {result.N}, '
+                f'm/N = {result.m_N}, '
                 f'D_eta = {round(result.D_eta, 6)}\n'
                 f'S = {round(self.S, 6)}, S0 = {round(result.S0, 6)}\n'
-                f'abs.accuracy of S0 = {round(result.abs_accuracy_of_S0, 6)}\n'
+                f'abs.accuracy of S0 = {round(result.abs_accuracy_of_S0, 6)}'
                 f'rel.accuracy of S0 = {round(result.rel_accuracy_of_S0, 6)}%\n'
                 f'90% CI = {result.CI}'
             )
@@ -319,6 +319,7 @@ if __name__ == '__main__':
     checkpoints = [10, 25, 60, 150, 400, 1000]
     checkpoints = list(map(lambda x: x - 1, checkpoints))
     results = solution.fitting(num_of_samples, confidence)
+    solution.visual_regions(result=results[-1], fill=True, padding=0.18)
     solution.plot_relative_accuracy(results, checkpoints)
 
     # solution.check_local_value(0.66, 19.7434, 50, "90%")
