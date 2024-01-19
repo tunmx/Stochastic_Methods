@@ -141,7 +141,10 @@ class MonterCarloSolution(object):
         plt.ylim(y_min_padded, y_max_padded)
         plt.xlabel('x')
         plt.ylabel('y')
-        plt.title('Filled Plot of Regions D1, D2, and D3 with Correct Aspect Ratio')
+        if fill:
+            plt.title('Monte Carlo Simulation of Geometric Area Estimation with Confidence Interval Analysis')
+        else:
+            plt.title('Filled Plot of Regions D1, D2, and D3')
         plt.grid(True)
         plt.gca().set_aspect('equal', adjustable='box')
         plt.show()
